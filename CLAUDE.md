@@ -4,27 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-Install deps and run the test suite (matches `.travis.yml`):
+Install (editable, with test deps) and run the suite — all from the repo root:
 
 ```bash
-pip install -r requirements.txt
-cd streampredictor && nosetests
+pip install -e ".[dev]"
+pytest
 ```
 
 Run a single test:
 
 ```bash
-cd streampredictor && nosetests test_streampredictor:TestPatternOfPatterns.test_save
+pytest streampredictor/test_streampredictor.py::TestPatternOfPatterns::test_save
 ```
 
-Run an experiment (note: they `sys.path.insert` `..` and `../streampredictor`, so they MUST be launched from inside `experiments/`):
+Run an experiment (works from any cwd; paths are anchored to the repo via `Path(__file__)`):
 
 ```bash
-cd experiments && python perplexity.py        # train on PTB, save TSV, plot perplexity
-cd experiments && python simple_generation.py # tiny end-to-end demo
+python experiments/perplexity.py        # train on PTB, save TSV, plot perplexity
+python experiments/simple_generation.py # tiny end-to-end demo
 ```
 
-Targets Python 3.5 (per `.travis.yml`); deps are `nltk`, `numpy`, `matplotlib`, `nose`. `nltk_data` is vendored in the repo root and copied to `/usr/share/nltk_data` in CI.
+Targets Python 3.10+ (CI matrix in `.github/workflows/ci.yml` runs 3.10, 3.11, 3.12). Packaging is in `pyproject.toml`; runtime deps are `nltk`, `numpy`, `matplotlib`; `pytest` lives under the `[dev]` extra. The first call to `data_fetcher.get_clean_words_from_file` lazy-downloads `punkt_tab` via `nltk.download` — no vendored `nltk_data`.
 
 ## Architecture
 
@@ -61,8 +61,7 @@ Note that `belongs_to_category` / `members_of_category` are wired through the co
 
 ### Peripheral code
 
-- `experiments/` — driver scripts; they hardcode paths like `../Data/ptb.test.txt` (the actual file is `data/ptb.test.txt`, lowercase) and `../PatternStore/...`, so expect to fix paths or `cd` accordingly.
+- `experiments/` — driver scripts (`perplexity.py`, `simple_generation.py`); paths anchor to the repo via `Path(__file__).resolve().parent.parent`, and they create `PatternStore/` on demand.
 - `notebook/` — Jupyter demos; `Stream Predictor Language Demo.ipynb` is the one linked from the README.
-- `django/` — an unrelated Django scaffold (`PotterTextGen`) for a web demo. Not wired into the library; ignore unless explicitly working on the web app.
 - `docs/main.tex` + `pop.png` — the paper source.
 - `PatternStore/` — saved TSV models (gitignored except for `first_pattern.tsv`).
