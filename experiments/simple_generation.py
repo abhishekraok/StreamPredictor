@@ -1,8 +1,10 @@
-import sys
+from pathlib import Path
 
-sys.path.insert(0, '../streampredictor/')
-sys.path.insert(0, '../')
 from streampredictor.stream_predictor import StreamPredictor
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+pattern_store = REPO_ROOT / 'PatternStore'
+pattern_store.mkdir(exist_ok=True)
 
 sp = StreamPredictor()
 sp.occasional_step = 100
@@ -14,5 +16,5 @@ sp.train(input_words, verbose=True)
 print('\n\nThe generated words are ')
 print(sp.generate(20))
 print('\nEnd of generated words\n')
-sp.file_manager.save_tsv('../PatternStore/simple_generate.tsv')
+sp.file_manager.save_tsv(str(pattern_store / 'simple_generate.tsv'))
 print(sp.pop_manager.pattern_collection)
