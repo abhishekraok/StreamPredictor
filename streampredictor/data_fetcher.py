@@ -5,6 +5,13 @@ import os
 import random
 
 
+def _ensure_punkt():
+    try:
+        nltk.data.find('tokenizers/punkt_tab')
+    except LookupError:
+        nltk.download('punkt_tab', quiet=True)
+
+
 def gutenberg_random_book():
     for i in range(100):
         book_number = random.randint(9, 2000)
@@ -40,6 +47,7 @@ def get_clean_text_from_file(file, max_input_stream_length):
 
 
 def get_clean_words_from_file(file, max_input_length):
+    _ensure_punkt()
     with open(file) as opened_file:
         text = opened_file.read()
         clean_words = nltk.word_tokenize(clean_text(text))[:max_input_length]
@@ -64,6 +72,7 @@ def clean_text(text, max_input_length=10 ** 10000):
 
 
 def get_online_words(max_input_length):
+    _ensure_punkt()
     text = gutenberg_random_book()
     words = nltk.word_tokenize(clean_text(text, max_input_length))
     return words
