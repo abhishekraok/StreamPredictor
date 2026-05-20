@@ -47,7 +47,7 @@ class FileManager():
             elements = lines.strip('\n').split('\t')
             key = elements[0]
             current_pop = self.pop_manager.get(key)
-            if elements[2] is not '' and elements[3] is not '':
+            if elements[2] != '' and elements[3] != '':
                 first_component = self.pop_manager.get(elements[2])
                 second_component = self.pop_manager.get(elements[3])
                 current_pop.set_components(first_component, second_component)

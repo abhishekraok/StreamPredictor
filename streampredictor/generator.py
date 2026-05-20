@@ -28,7 +28,7 @@ class Generator():
         :rtype: list[str]
         """
         print('Generating words with word count = ', word_length)
-        if (seed is None) or (seed is ''):
+        if not seed:
             current_word = self.get_random_base_word()
         else:
             current_word = seed
