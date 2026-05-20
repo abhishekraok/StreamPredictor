@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "streampredictor"
+version = "0.0.2"
+description = "Model sequential data with hierarchical evolutionary patterns"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Abhishek Rao", email = "abhishek.rao.comm@gmail.com" }]
+urls = { Homepage = "https://github.com/abhishekraok/StreamPredictor" }
+dependencies = [
+    "nltk>=3.9",
+    "numpy>=2.0",
+    "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+include = ["streampredictor*"]
+exclude = ["streampredictor.scratch*"]

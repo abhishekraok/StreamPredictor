@@ -1,4 +1,0 @@
-nltk
-numpy
-matplotlib
-nose
