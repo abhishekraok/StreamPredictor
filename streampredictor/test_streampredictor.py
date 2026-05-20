@@ -1,11 +1,12 @@
 import os
+import tempfile
 from unittest import TestCase
 
 from streampredictor.pop import Pop
 from streampredictor.stream_predictor import StreamPredictor
 from streampredictor import generator
 
-save_filename = '../PatternStore/test.tsv'
+save_filename = os.path.join(tempfile.gettempdir(), 'streampredictor_test.tsv')
 training_words = 'cat hat mat bat sat in the barn'.split(' ')
 
 
