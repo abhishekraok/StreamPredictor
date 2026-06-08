@@ -1,6 +1,4 @@
 import nltk
-import urllib.request, urllib.error, urllib.parse
-import time
 import os
 import random
 
@@ -10,28 +8,6 @@ def _ensure_punkt():
         nltk.data.find('tokenizers/punkt_tab')
     except LookupError:
         nltk.download('punkt_tab', quiet=True)
-
-
-def gutenberg_random_book():
-    for i in range(100):
-        book_number = random.randint(9, 2000)
-        url = 'http://www.gutenberg.org/cache/epub/' + str(book_number) + '/pg' + str(book_number) + '.txt'
-        response = urllib.request.urlopen(url)
-        text = response.read()
-        if len(text) > 1000 and is_english(text):
-            print(('Got book from ', url))
-            return text
-        else:
-            print(('Didnt get book, waiting for some time, seconds = ' + str(10 + book_number / 10)))
-            time.sleep(10 + book_number / 10)
-
-
-def is_english(text):
-    english_words = ['here', 'there', 'where', 'some', 'and', 'but']
-    for word in english_words:
-        if word not in text:
-            return False
-    return True
 
 
 def get_random_book_local(folder):
@@ -69,12 +45,3 @@ def clean_text(text, max_input_length=10 ** 10000):
     # make sure to remove # for category separation
     text = ''.join(e for e in text if e.isalnum() or e in '.?", <>')
     return text
-
-
-def get_online_words(max_input_length):
-    _ensure_punkt()
-    text = gutenberg_random_book()
-    words = nltk.word_tokenize(clean_text(text, max_input_length))
-    return words
-
-

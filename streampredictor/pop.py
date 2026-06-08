@@ -49,17 +49,6 @@ class Pop:
         first_component.first_child_parents.append(self)
         self.second_component = second_component
 
-    # def set_category(self, first_component, second_component):
-    #     """
-    #     Sets the member categories.
-    #     """
-    #     if not first_component or not second_component:
-    #         raise Exception("component cannot be None")
-    #     first_component.belongs_to_category = self
-    #     second_component.belongs_to_category = self
-    #     self.members_of_category.append(first_component)
-    #     self.members_of_category.append(second_component)
-
     def get_sample(self):
         if len(self.members_of_category) < 1:
             return self.unrolled_pattern
@@ -88,15 +77,6 @@ class Pop:
         if self.belongs_to_category:
             out += ' # ' + self.belongs_to_category.unrolled_pattern
         return out
-
-    # def similarity(self, other_pop):
-    #     if not (self.first_component and self.second_component
-    #             and other_pop.first_component and other_pop.second_component):
-    #         return SequenceMatcher(None, self.unrolled_pattern, other_pop.unrolled_pattern).ratio()
-    #     similarity1 = self.first_component.similarity(other_pop.first_component)
-    #     similarity2 = self.second_component.similarity(other_pop.second_component)
-    #     return (len(self.first_component.unrolled_pattern) * similarity1 + len(self.second_component.unrolled_pattern)
-    #             * similarity2) / len(self.unrolled_pattern)
 
     def get_next_smallest_distribution(self):
         """ Gives the list of next predicted words and their associated probabilities.

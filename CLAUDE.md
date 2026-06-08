@@ -34,7 +34,7 @@ The library models sequential data (text) by building a hierarchical, evolving d
 
 A `Pop` ("Pattern of Pattern") is a node in a binary tree. Invariant: `pop.unrolled_pattern == pop.first_component.unrolled_pattern + pop.second_component.unrolled_pattern`. The string is the identity — `PopManager.pattern_collection` is keyed by `unrolled_pattern`, so two Pops with the same string must not coexist.
 
-Each Pop also tracks `first_child_parents`: every parent that has *this* Pop as its `first_component`. This back-pointer is what `get_next_smallest_distribution` walks to predict the next word — for each parent reachable from the current Pop, it descends `second_component.first_component...` to the leftmost leaf and uses that as a successor candidate, weighted by parent `strength`. Keeping `first_child_parents` consistent with `first_component` is fragile; `PopManager.fix_first_child_parents` exists to repair drift, and any code that reassigns `first_component` must remove the old back-pointer first (see `change_components_string`).
+Each Pop also tracks `first_child_parents`: every parent that has *this* Pop as its `first_component`. This back-pointer is what `get_next_smallest_distribution` walks to predict the next word — for each parent reachable from the current Pop, it descends `second_component.first_component...` to the leftmost leaf and uses that as a successor candidate, weighted by parent `strength`. Keeping `first_child_parents` consistent with `first_component` is fragile: any code that reassigns `first_component` must remove the old back-pointer first (see `change_components_string`).
 
 ### Evolution loop (`streampredictor/pop_manager.py`)
 

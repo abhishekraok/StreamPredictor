@@ -167,20 +167,3 @@ class PopManager:
             out_string += pop.__repr__()
         out_string += 'Status of Pattern of patterns with ' + str(len(self.pattern_collection)) + ' pops \n'
         return out_string
-
-    ############## end of clean code ########################
-
-    def fix_first_child_parents(self, verbose=False):
-        """
-        Fixes mismatch between first_child_parents by going through each pattern and checking if pop is
-        pop.first_child_parents.first component
-        """
-        print('Fixing incorrect first_child_parents')
-        for pop in list(self.pattern_collection.values()):
-            for parent_pop in pop.first_child_parents:
-                if parent_pop.first_component:
-                    if parent_pop.first_component is pop:
-                        continue
-                if verbose:
-                    print('Mismatch ', pop.__repr__(), ' and ', parent_pop.__repr__())
-                pop.first_child_parents.remove(parent_pop)
