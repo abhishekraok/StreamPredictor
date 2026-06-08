@@ -147,14 +147,22 @@ class PopManager:
 
     def add_words_to_vocabulary(self, words, verbose=True):
         """
-        Find the vocabulary and add that vocabulary to pattern collection.
+        Mark each word as a base vocabulary token. If the string already exists
+        in pattern_collection as a learned composite (e.g. training combined
+        'sell' + 'off' into 'selloff' before 'selloff' itself was seen as a
+        token), promote it to vocabulary instead of creating a duplicate Pop.
 
         :type words: list of str
         :rtype: None
         """
         unique_words = set(words)
         for word in unique_words:
-            if word not in self.pattern_collection:
+            if word in self.vocabulary:
+                continue
+            if word in self.pattern_collection:
+                self.vocabulary.add(word)
+                self.vocabulary_count += 1
+            else:
                 self.add_pop_to_vocabulary(Pop(word))
                 self.pattern_collection[word].feed(self.feed_strength_gain)
         if verbose:

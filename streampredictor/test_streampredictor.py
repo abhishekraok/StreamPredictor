@@ -210,3 +210,15 @@ class TestStreamPredictor(TestCase):
         second_next_words, second_probabilities = sp.pop_manager.get('that').get_next_smallest_distribution()
         self.assertEqual({'is', 'isnt'}, set(second_next_words))
         self.assertListEqual([0.5, 0.5], list(second_probabilities))
+
+    def test_perplexity_handles_composite_collision(self):
+        """Training combines 'sell'+'off' into the composite Pop 'selloff'.
+        If 'selloff' later appears as a test token, it must still get
+        promoted to vocabulary so perplexity_step finds it in the
+        distribution instead of raising ValueError."""
+        sp = StreamPredictor()
+        sp.train(['sell', 'off', 'sell', 'off'])
+        self.assertIn('selloff', sp.pop_manager.pattern_collection)
+        self.assertNotIn('selloff', sp.pop_manager.vocabulary)
+        sp.calculate_perplexity(['selloff', 'sell'], verbose=False)
+        self.assertIn('selloff', sp.pop_manager.vocabulary)
