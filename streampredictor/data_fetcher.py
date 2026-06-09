@@ -31,6 +31,19 @@ def get_clean_words_from_file(file, max_input_length):
         return clean_words
 
 
+def get_bytes_from_file(file, max_bytes):
+    """
+    Read raw bytes and return them as a list of single-character strings —
+    one per byte — using latin-1 so each byte maps 1:1 to a Unicode code
+    point in [0, 256). No cleaning, no rotation. This is the tokenization
+    regime that matters for Hutter Prize (enwik8/enwik9 are scored on raw
+    bytes); the same loader works for any byte stream.
+    """
+    with open(file, 'rb') as f:
+        raw = f.read(max_bytes)
+    return list(raw.decode('latin-1'))
+
+
 def get_words_from_ptb(file, max_input_length):
     with open(file) as opened_file:
         text = opened_file.read().replace('\n', '')

@@ -52,12 +52,17 @@ class StreamPredictor:
                 raise ValueError('Generated word not in vocabulary :' + word)
         return generated_output
 
-    def calculate_bpc(self, words, verbose=False):
+    def calculate_bpc(self, words, verbose=False, separator=' ', encoding='utf-8'):
         """
-        Bits-per-character on the held-out word sequence. Scores words[1:]
+        Bits-per-character on the held-out token sequence. Scores words[1:]
         under the model (words[0] is treated as given, matching
         calculate_perplexity), and divides total bits by the byte length of
-        the space-joined reconstruction of those same scored tokens.
+        the reconstruction of those same scored tokens.
+
+        For word-level use the defaults (space separator, utf-8). For
+        byte-level (one byte per token, latin-1 decoded), pass
+        separator='' and encoding='latin-1' so the reconstruction is
+        exactly the original byte string.
 
         Returns both 'intrinsic' bpc (assumes the decoder already knows the
         full vocabulary) and 'with_vocab' bpc (charges raw bytes for each
@@ -69,7 +74,7 @@ class StreamPredictor:
         pre_vocab = set(self.pop_manager.vocabulary)
         self.pop_manager.add_words_to_vocabulary(words, verbose=verbose)
         new_words = self.pop_manager.vocabulary - pre_vocab
-        vocab_bits = len(' '.join(sorted(new_words)).encode('utf-8')) * 8 if new_words else 0
+        vocab_bits = len(separator.join(sorted(new_words)).encode(encoding)) * 8 if new_words else 0
 
         total_bits = 0.0
         for i in range(1, len(words)):
@@ -77,8 +82,8 @@ class StreamPredictor:
             if words[i] not in distribution:
                 raise ValueError('Next word not present in distribution: ' + words[i])
             total_bits += -np.log2(distribution[words[i]])
-        scored_text = ' '.join(words[1:])
-        total_chars = len(scored_text.encode('utf-8'))
+        scored_text = separator.join(words[1:])
+        total_chars = len(scored_text.encode(encoding))
         bpc_intrinsic = total_bits / total_chars
         bpc_with_vocab = (total_bits + vocab_bits) / total_chars
         if verbose:
