@@ -61,7 +61,7 @@ for label, _ in variants:
 print()
 print('=== uniform_prediction_ratio sweep on log_strength ===')
 sweep_results = {}
-for ratio in (0.001, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5):
+for ratio in (1e-6, 1e-5, 1e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 5e-1):
     gen = generator_mod.Generator(
         sp.pop_manager.pattern_collection,
         sp.pop_manager.vocabulary,
