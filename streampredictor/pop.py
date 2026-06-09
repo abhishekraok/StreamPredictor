@@ -78,8 +78,13 @@ class Pop:
             out += ' # ' + self.belongs_to_category.unrolled_pattern
         return out
 
-    def get_next_smallest_distribution(self):
+    def get_next_smallest_distribution(self, use_log_strength=False):
         """ Gives the list of next predicted words and their associated probabilities.
+
+        use_log_strength=True weights parent votes by log1p(strength) instead
+        of raw strength, matching the cross-Pop blend's behavior. Default is
+        raw strength so callers in the original 'longest' path are unchanged.
+
         :return: List A, B. Where A is a list of strings, B is list of floats.
         """
         next_words = []
@@ -90,7 +95,10 @@ class Pop:
                 while next_pop.first_component:
                     next_pop = next_pop.first_component
                 next_words.append(next_pop.get_sample())
-                strengths.append(max(parent_i.strength, 0))
+                s = max(parent_i.strength, 0)
+                if use_log_strength:
+                    s = float(np.log1p(s))
+                strengths.append(s)
         total = sum(strengths)
         probabilities = np.array([float(i) / total for i in strengths])
         return next_words, probabilities

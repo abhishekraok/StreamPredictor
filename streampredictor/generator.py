@@ -102,7 +102,8 @@ class Generator():
         distributions = []
         weights = []
         for current_pop in self._matching_suffix_pops(previous_list_of_words):
-            words, probabilities = current_pop.get_next_smallest_distribution()
+            words, probabilities = current_pop.get_next_smallest_distribution(
+                use_log_strength=self.blend_log_strength)
             if len(words) == 0:
                 continue
             distributions.append(dict(zip(words, probabilities)))

@@ -56,3 +56,23 @@ print('gzip                            : {0:.4f} bpc ({1} bytes)'.format(gzip_bp
 for label, _ in variants:
     r = results[label]
     print('{0:30s}  : {1:.4f} bpc'.format(label, r['bpc_intrinsic']))
+
+# Sweep uniform_prediction_ratio on the winning variant.
+print()
+print('=== uniform_prediction_ratio sweep on log_strength ===')
+sweep_results = {}
+for ratio in (0.001, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5):
+    gen = generator_mod.Generator(
+        sp.pop_manager.pattern_collection,
+        sp.pop_manager.vocabulary,
+        prediction_mode='strength_blend',
+        blend_log_strength=True,
+    )
+    gen.uniform_prediction_ratio = ratio
+    sp.generator = gen
+    r = sp.calculate_bpc(tokens[test_length:], verbose=False,
+                         separator='', encoding='latin-1')
+    sweep_results[ratio] = r['bpc_intrinsic']
+    print('  ratio={0:6.3f}  bpc={1:.4f}'.format(ratio, r['bpc_intrinsic']))
+best_ratio, best_bpc = min(sweep_results.items(), key=lambda kv: kv[1])
+print('Best: ratio={0}  bpc={1:.4f}  (gzip={2:.4f})'.format(best_ratio, best_bpc, gzip_bpc))
