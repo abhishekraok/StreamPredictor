@@ -5,15 +5,25 @@ from streampredictor import utitlities
 
 
 class Generator():
-    def __init__(self, pattern_collection, vocabulary):
+    def __init__(self, pattern_collection, vocabulary, prediction_mode='longest'):
         """
-        Generates words from pattern collection
+        Generates words from pattern collection.
+
+        prediction_mode='longest' (default, original behavior): pick the
+        longest-suffix Pop with any successors and blend with uniform.
+        prediction_mode='strength_blend': blend every matching-suffix Pop
+        from longest to shortest, each weighted by its own strength, plus a
+        uniform floor scaled by uniform_prediction_ratio. Long-but-rarely-
+        seen patterns no longer monopolize the prediction.
 
         :type pattern_collection:dict[str,pop.Pop]
         """
+        if prediction_mode not in ('longest', 'strength_blend'):
+            raise ValueError('Unknown prediction_mode: ' + repr(prediction_mode))
         self.pattern_collection = pattern_collection
         self.vocabulary = vocabulary
         self.uniform_prediction_ratio = constants.uniform_prediction_ratio
+        self.prediction_mode = prediction_mode
 
     @property
     def vocabulary_count(self):
@@ -57,6 +67,8 @@ class Generator():
         :type previous_list_of_words: list[str]
         :rtype: dict[str,float]
         """
+        if self.prediction_mode == 'strength_blend':
+            return self._strength_blend_distribution(previous_list_of_words)
         current_pop = self.longest_pop(previous_list_of_words)
         words, probabilities = current_pop.get_next_smallest_distribution()
         if current_pop.belongs_to_category:
@@ -69,6 +81,44 @@ class Generator():
             [predicted_distribution, uniform_distribution],
             weights=[1 - self.uniform_prediction_ratio, self.uniform_prediction_ratio])
         return final_distribution
+
+    def _strength_blend_distribution(self, previous_list_of_words):
+        """
+        Blend successor distributions of every matching-suffix Pop, each
+        weighted by its own strength, plus a uniform floor sized so it
+        carries uniform_prediction_ratio of the total mass when any Pop
+        matches. Falls back to uniform alone if no Pop matches.
+        """
+        distributions = []
+        weights = []
+        for current_pop in self._matching_suffix_pops(previous_list_of_words):
+            words, probabilities = current_pop.get_next_smallest_distribution()
+            if len(words) == 0:
+                continue
+            distributions.append(dict(zip(words, probabilities)))
+            weights.append(max(current_pop.strength, 0))
+        if distributions:
+            uniform_weight = self.uniform_prediction_ratio * sum(weights) / max(1 - self.uniform_prediction_ratio, 1e-9)
+        else:
+            uniform_weight = 1.0
+        distributions.append(self.get_uniform_distribution())
+        weights.append(uniform_weight)
+        return utitlities.combine_normalize_distribution(distributions, weights)
+
+    def _matching_suffix_pops(self, list_of_words):
+        """
+        Walk suffixes longest-to-shortest and yield every Pop in the
+        collection that matches one. Unlike longest_pop this returns the
+        full chain, not just the first hit.
+        """
+        end = len(list_of_words)
+        start = max(0, end - constants.maximum_pattern_length)
+        matched = []
+        for j in range(start, end):
+            current_word = ''.join(list_of_words[j:])
+            if current_word in self.pattern_collection:
+                matched.append(self.pattern_collection[current_word])
+        return matched
 
     def longest_pop(self, list_of_words):
         """
