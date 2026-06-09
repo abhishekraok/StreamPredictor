@@ -1,3 +1,5 @@
+import numpy as np
+
 from streampredictor import file_manager
 from streampredictor import pop
 from streampredictor import pop_manager
@@ -49,6 +51,49 @@ class StreamPredictor:
             if word not in self.pop_manager.vocabulary:
                 raise ValueError('Generated word not in vocabulary :' + word)
         return generated_output
+
+    def calculate_bpc(self, words, verbose=False):
+        """
+        Bits-per-character on the held-out word sequence. Scores words[1:]
+        under the model (words[0] is treated as given, matching
+        calculate_perplexity), and divides total bits by the byte length of
+        the space-joined reconstruction of those same scored tokens.
+
+        Returns both 'intrinsic' bpc (assumes the decoder already knows the
+        full vocabulary) and 'with_vocab' bpc (charges raw bytes for each
+        previously-unseen test-set token, so a decoder starting only from
+        the trained model could reconstruct the text). The with-vocab number
+        is the apples-to-apples comparison against gzip on the same byte
+        string.
+        """
+        pre_vocab = set(self.pop_manager.vocabulary)
+        self.pop_manager.add_words_to_vocabulary(words, verbose=verbose)
+        new_words = self.pop_manager.vocabulary - pre_vocab
+        vocab_bits = len(' '.join(sorted(new_words)).encode('utf-8')) * 8 if new_words else 0
+
+        total_bits = 0.0
+        for i in range(1, len(words)):
+            distribution = self.generator.next_word_distribution(words[:i])
+            if words[i] not in distribution:
+                raise ValueError('Next word not present in distribution: ' + words[i])
+            total_bits += -np.log2(distribution[words[i]])
+        scored_text = ' '.join(words[1:])
+        total_chars = len(scored_text.encode('utf-8'))
+        bpc_intrinsic = total_bits / total_chars
+        bpc_with_vocab = (total_bits + vocab_bits) / total_chars
+        if verbose:
+            print('Pred bits: {0:.1f}  vocab bits: {1} ({2} new words)  total chars: {3}'.format(
+                total_bits, vocab_bits, len(new_words), total_chars))
+            print('Intrinsic bpc: {0:.4f}  with-vocab bpc: {1:.4f}'.format(
+                bpc_intrinsic, bpc_with_vocab))
+        return {
+            'bpc_intrinsic': bpc_intrinsic,
+            'bpc_with_vocab': bpc_with_vocab,
+            'pred_bits': total_bits,
+            'vocab_bits': vocab_bits,
+            'total_chars': total_chars,
+            'new_words': len(new_words),
+        }
 
     def calculate_perplexity(self, words, verbose=False):
         self.pop_manager.add_words_to_vocabulary(words, verbose)
