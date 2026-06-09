@@ -1,8 +1,7 @@
 """
 Byte-level bpc benchmark on PTB. One Pop token per byte (no word
-tokenization, no rotation). Trains once, then evaluates bpc under both
-prediction modes (longest-match vs strength-weighted blend across all
-matching suffixes) so we can A/B them on identical model state. gzip on
+tokenization, no rotation). Trains once, then evaluates bpc under several
+prediction modes / weighting variants on identical model state. gzip on
 the same byte string is the apples-to-apples baseline.
 """
 import gzip
@@ -27,16 +26,24 @@ sp = StreamPredictor()
 sp.train(tokens[:test_length])
 sp.file_manager.save_tsv(str(pattern_store / 'ptb_bpc_byte.tsv'))
 
+variants = [
+    ('longest',                dict(prediction_mode='longest')),
+    ('strength_blend (pure)',  dict(prediction_mode='strength_blend')),
+    ('strength_blend x len',   dict(prediction_mode='strength_blend', blend_length_bonus=True)),
+    ('log_strength',           dict(prediction_mode='strength_blend', blend_log_strength=True)),
+    ('log_strength x len',     dict(prediction_mode='strength_blend', blend_log_strength=True, blend_length_bonus=True)),
+]
+
 results = {}
-for mode in ('longest', 'strength_blend'):
+for label, kwargs in variants:
     sp.generator = generator_mod.Generator(
         sp.pop_manager.pattern_collection,
         sp.pop_manager.vocabulary,
-        prediction_mode=mode,
+        **kwargs,
     )
-    print('\n--- evaluating prediction_mode={0!r} ---'.format(mode))
-    results[mode] = sp.calculate_bpc(tokens[test_length:], verbose=True,
-                                     separator='', encoding='latin-1')
+    print('\n--- evaluating {0!r} ---'.format(label))
+    results[label] = sp.calculate_bpc(tokens[test_length:], verbose=True,
+                                      separator='', encoding='latin-1')
 
 scored_text = ''.join(tokens[test_length:][1:]).encode('latin-1')
 gzipped = gzip.compress(scored_text)
@@ -44,9 +51,8 @@ gzip_bpc = len(gzipped) * 8 / len(scored_text)
 
 print()
 print('=== byte-level bpc on {0}-byte PTB held-out slice ==='.format(len(scored_text)))
-print('raw bytes                          : 8.0000 bpc')
-print('gzip                               : {0:.4f} bpc ({1} bytes)'.format(gzip_bpc, len(gzipped)))
-for mode in ('longest', 'strength_blend'):
-    r = results[mode]
-    print('streampredictor {0:14s} : {1:.4f} bpc intrinsic / {2:.4f} with-vocab ({3} new bytes)'.format(
-        mode, r['bpc_intrinsic'], r['bpc_with_vocab'], r['new_words']))
+print('raw bytes                       : 8.0000 bpc')
+print('gzip                            : {0:.4f} bpc ({1} bytes)'.format(gzip_bpc, len(gzipped)))
+for label, _ in variants:
+    r = results[label]
+    print('{0:30s}  : {1:.4f} bpc'.format(label, r['bpc_intrinsic']))

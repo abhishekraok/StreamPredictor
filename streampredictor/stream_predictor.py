@@ -8,7 +8,8 @@ from streampredictor import generator
 
 
 class StreamPredictor:
-    def __init__(self, pm=None, prediction_mode='longest'):
+    def __init__(self, pm=None, prediction_mode='longest',
+                 blend_log_strength=False, blend_length_bonus=False):
         if pm:
             self.pop_manager = pm  # type: pop_manager
         else:
@@ -16,7 +17,9 @@ class StreamPredictor:
         self.file_manager = file_manager.FileManager(self.pop_manager)
         self.generator = generator.Generator(self.pop_manager.pattern_collection,
                                              self.pop_manager.vocabulary,
-                                             prediction_mode=prediction_mode)
+                                             prediction_mode=prediction_mode,
+                                             blend_log_strength=blend_log_strength,
+                                             blend_length_bonus=blend_length_bonus)
         print(self.pop_manager.stats())
 
     def train(self, list_of_words, verbose=False):

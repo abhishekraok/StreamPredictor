@@ -5,16 +5,24 @@ from streampredictor import utitlities
 
 
 class Generator():
-    def __init__(self, pattern_collection, vocabulary, prediction_mode='longest'):
+    def __init__(self, pattern_collection, vocabulary, prediction_mode='longest',
+                 blend_log_strength=False, blend_length_bonus=False):
         """
         Generates words from pattern collection.
 
         prediction_mode='longest' (default, original behavior): pick the
         longest-suffix Pop with any successors and blend with uniform.
         prediction_mode='strength_blend': blend every matching-suffix Pop
-        from longest to shortest, each weighted by its own strength, plus a
-        uniform floor scaled by uniform_prediction_ratio. Long-but-rarely-
-        seen patterns no longer monopolize the prediction.
+        from longest to shortest, each weighted by a function of its
+        strength (and optionally its length), plus a uniform floor scaled
+        by uniform_prediction_ratio.
+
+        blend_log_strength: use log1p(strength) instead of raw strength.
+        Compresses the dynamic range so the max_strength cap matters less
+        and rarely-seen long patterns get a fairer voice.
+        blend_length_bonus: multiply each Pop's weight by its character
+        length. Gives longer matches a "context bonus" when their strength
+        is comparable to a shorter level's.
 
         :type pattern_collection:dict[str,pop.Pop]
         """
@@ -24,6 +32,8 @@ class Generator():
         self.vocabulary = vocabulary
         self.uniform_prediction_ratio = constants.uniform_prediction_ratio
         self.prediction_mode = prediction_mode
+        self.blend_log_strength = blend_log_strength
+        self.blend_length_bonus = blend_length_bonus
 
     @property
     def vocabulary_count(self):
@@ -96,7 +106,7 @@ class Generator():
             if len(words) == 0:
                 continue
             distributions.append(dict(zip(words, probabilities)))
-            weights.append(max(current_pop.strength, 0))
+            weights.append(self._pop_blend_weight(current_pop))
         if distributions:
             uniform_weight = self.uniform_prediction_ratio * sum(weights) / max(1 - self.uniform_prediction_ratio, 1e-9)
         else:
@@ -104,6 +114,14 @@ class Generator():
         distributions.append(self.get_uniform_distribution())
         weights.append(uniform_weight)
         return utitlities.combine_normalize_distribution(distributions, weights)
+
+    def _pop_blend_weight(self, current_pop):
+        weight = max(current_pop.strength, 0)
+        if self.blend_log_strength:
+            weight = float(np.log1p(weight))
+        if self.blend_length_bonus:
+            weight = weight * len(current_pop.unrolled_pattern)
+        return weight
 
     def _matching_suffix_pops(self, list_of_words):
         """
