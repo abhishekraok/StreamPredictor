@@ -24,6 +24,7 @@ python experiments/perplexity.py        # train on PTB, save TSV, plot perplexit
 python experiments/simple_generation.py # tiny end-to-end demo
 python experiments/bpc.py               # word-level bits-per-character vs gzip
 python experiments/bpc_byte.py          # byte-level bpc, A/B prediction modes, uniform sweep
+python experiments/visualize_predictions.py  # self-contained HTML report: loss ribbon, 20 random + 20 worst positions with per-Pop attribution
 ```
 
 Targets Python 3.10+ (CI matrix in `.github/workflows/ci.yml` runs 3.10, 3.11, 3.12). Packaging is in `pyproject.toml`; runtime deps are `nltk`, `numpy`, `matplotlib`; `pytest` lives under the `[dev]` extra. The first call to `data_fetcher.get_clean_words_from_file` lazy-downloads `punkt_tab` via `nltk.download` — no vendored `nltk_data`.
@@ -55,6 +56,8 @@ Strength dynamics are driven by `constants.feed_ratio = [0.5, 0.25, 0.25]` (self
 - `'strength_blend'`: instead of committing to the longest match, blend the successor distributions of *every* matching-suffix Pop, each weighted by `_pop_blend_weight(pop)`. The weight is `strength` by default; `blend_log_strength=True` makes it `log1p(strength)` (compresses the dynamic range so rarely-seen long patterns get a fairer voice and the `max_strength` cap matters less); `blend_length_bonus=True` multiplies by `len(unrolled_pattern)`. When `blend_log_strength` is on, the within-Pop parent vote in `Pop.get_next_smallest_distribution` is also log-weighted for consistency. A uniform floor sized to carry `uniform_prediction_ratio` of the total mass is added at the end.
 
 Note that `belongs_to_category` / `members_of_category` are wired through the code but the population logic (`generalize`) is commented out in tests — categorization is partially implemented. The category blend in step (b) above only applies to `'longest'` mode.
+
+Both modes flow through `_distribution_components`, and `next_word_distribution_traced` returns the final distribution plus every `(Pop, weight, votes)` component — the attribution API behind `experiments/visualize_predictions.py`, which writes a self-contained HTML report (`PatternStore/prediction_report.html`) and per-position JSONL trace.
 
 **Known scaling ceiling on byte-level data.** With `prediction_mode='strength_blend', blend_log_strength=True, uniform_prediction_ratio=0.001` (the tuned configuration) the byte-level bpc on PTB plateaus around 3.83 — adding more training data slightly *worsens* it while gzip's bpc on the same data drops. The pathology is in the algorithm structure (long-but-rare patterns accumulate and dominate the greedy longest-match parser), not in the weighting. Don't propose "more data" or "tune the ratio lower" as the fix — both have already been swept. See `memory/algorithm_scaling_ceiling.md` and the commit log around `46881c7` for the data.
 

@@ -77,8 +77,40 @@ class Generator():
         :type previous_list_of_words: list[str]
         :rtype: dict[str,float]
         """
+        distributions, weights, _ = self._distribution_components(previous_list_of_words)
+        return utitlities.combine_normalize_distribution(distributions, weights)
+
+    def next_word_distribution_traced(self, previous_list_of_words):
+        """
+        Same as next_word_distribution, but also returns the components that
+        went into the blend so inspection tools can attribute the prediction.
+
+        Returns (final_distribution, components) where components is a list
+        of (source, weight, distribution) triples; source is the
+        contributing Pop, or None for the uniform floor. A component's
+        contribution to the final probability of word w is
+        weight * distribution.get(w, 0) / Z, with
+        Z = sum(weight * sum(distribution.values()) over components).
+
+        :type previous_list_of_words: list[str]
+        :rtype: (dict[str,float], list[(pop.Pop|None, float, dict[str,float])])
+        """
+        distributions, weights, sources = self._distribution_components(previous_list_of_words)
+        final_distribution = utitlities.combine_normalize_distribution(distributions, weights)
+        return final_distribution, list(zip(sources, weights, distributions))
+
+    def _distribution_components(self, previous_list_of_words):
+        """
+        Returns (distributions, weights, sources): the parallel lists that
+        combine_normalize_distribution turns into the final prediction.
+        sources holds the Pop behind each distribution, or None for the
+        uniform floor.
+        """
         if self.prediction_mode == 'strength_blend':
-            return self._strength_blend_distribution(previous_list_of_words)
+            return self._strength_blend_components(previous_list_of_words)
+        return self._longest_components(previous_list_of_words)
+
+    def _longest_components(self, previous_list_of_words):
         current_pop = self.longest_pop(previous_list_of_words)
         words, probabilities = current_pop.get_next_smallest_distribution()
         if current_pop.belongs_to_category:
@@ -86,21 +118,21 @@ class Generator():
             words = words + category_words
             probabilities = np.hstack([0.5 * probabilities, 0.5 * category_probabilities])
         predicted_distribution = dict((i, j) for i, j in zip(words, probabilities))
-        uniform_distribution = self.get_uniform_distribution()
-        final_distribution = utitlities.combine_normalize_distribution(
-            [predicted_distribution, uniform_distribution],
-            weights=[1 - self.uniform_prediction_ratio, self.uniform_prediction_ratio])
-        return final_distribution
+        distributions = [predicted_distribution, self.get_uniform_distribution()]
+        weights = [1 - self.uniform_prediction_ratio, self.uniform_prediction_ratio]
+        sources = [current_pop, None]
+        return distributions, weights, sources
 
-    def _strength_blend_distribution(self, previous_list_of_words):
+    def _strength_blend_components(self, previous_list_of_words):
         """
-        Blend successor distributions of every matching-suffix Pop, each
-        weighted by its own strength, plus a uniform floor sized so it
-        carries uniform_prediction_ratio of the total mass when any Pop
-        matches. Falls back to uniform alone if no Pop matches.
+        Successor distributions of every matching-suffix Pop, each weighted
+        by its own strength, plus a uniform floor sized so it carries
+        uniform_prediction_ratio of the total mass when any Pop matches.
+        Falls back to uniform alone if no Pop matches.
         """
         distributions = []
         weights = []
+        sources = []
         for current_pop in self._matching_suffix_pops(previous_list_of_words):
             words, probabilities = current_pop.get_next_smallest_distribution(
                 use_log_strength=self.blend_log_strength)
@@ -108,13 +140,15 @@ class Generator():
                 continue
             distributions.append(dict(zip(words, probabilities)))
             weights.append(self._pop_blend_weight(current_pop))
+            sources.append(current_pop)
         if distributions:
             uniform_weight = self.uniform_prediction_ratio * sum(weights) / max(1 - self.uniform_prediction_ratio, 1e-9)
         else:
             uniform_weight = 1.0
         distributions.append(self.get_uniform_distribution())
         weights.append(uniform_weight)
-        return utitlities.combine_normalize_distribution(distributions, weights)
+        sources.append(None)
+        return distributions, weights, sources
 
     def _pop_blend_weight(self, current_pop):
         weight = max(current_pop.strength, 0)
