@@ -5,8 +5,10 @@ StreamPredictor on held-out PTB bytes.
 Every held-out position is traced through Generator.next_word_distribution_traced:
 every matching-suffix Pop, its blend weight, its top votes, and how much of
 the actual byte's probability came from each Pop vs the uniform floor. The
-report shows 20 random + 20 worst-loss positions in full detail, plus a
-clickable per-byte loss ribbon over the whole test slice and aggregates
+report shows 20 uniformly random positions plus 20 loss-weighted positions
+(drawn with probability proportional to bits, so they show where a typical
+bit is lost rather than the extreme tail) in full detail, plus a clickable
+per-byte loss ribbon over the whole test slice and aggregates
 (bits histogram, loss vs longest-match length, worst-offender Pops).
 
 Reuses PatternStore/ptb_bpc_byte.tsv when present (the model saved by
@@ -38,7 +40,7 @@ uniform_ratio = 1e-3
 config_label = "strength_blend + log_strength, uniform_ratio={0}".format(uniform_ratio)
 
 n_random_samples = 20
-n_worst_samples = 20
+n_weighted_samples = 20  # drawn with probability proportional to bits
 top_k_final = 10
 top_k_votes = 5
 context_before = 60
@@ -136,12 +138,15 @@ def trace_positions(sp, test_tokens):
 
 
 def select_samples(records):
-    worst = sorted(range(len(records)), key=lambda k: -records[k]['bits'])[:n_worst_samples]
-    worst_set = set(worst)
-    rest = [k for k in range(len(records)) if k not in worst_set]
-    rng = random.Random(rng_seed)
-    random_samples = sorted(rng.sample(rest, min(n_random_samples, len(rest))))
-    return random_samples, worst
+    bits = np.array([r['bits'] for r in records])
+    rng = np.random.default_rng(rng_seed)
+    weighted = sorted(int(k) for k in rng.choice(
+        len(records), size=min(n_weighted_samples, len(records)),
+        replace=False, p=bits / bits.sum()))
+    chosen = set(weighted)
+    rest = [k for k in range(len(records)) if k not in chosen]
+    random_samples = sorted(random.Random(rng_seed).sample(rest, min(n_random_samples, len(rest))))
+    return random_samples, weighted
 
 
 def aggregate(records):
@@ -220,10 +225,10 @@ def build_card(record, test_tokens):
     }
 
 
-def build_data(records, test_tokens, random_samples, worst_samples, agg, gzip_bpc, pattern_count):
+def build_data(records, test_tokens, random_samples, weighted_samples, agg, gzip_bpc, pattern_count):
     ribbon = [[r['actual'], round(r['bits'], 3), round(r['uniform_share'], 3),
                r['n_pops'], r['longest']] for r in records]
-    sample_keys = set(random_samples) | set(worst_samples)
+    sample_keys = set(random_samples) | set(weighted_samples)
     cards = {str(k): build_card(records[k], test_tokens) for k in sample_keys}
     return {
         'meta': {
@@ -237,7 +242,7 @@ def build_data(records, test_tokens, random_samples, worst_samples, agg, gzip_bp
             'fallback_threshold': fallback_threshold,
         },
         'ribbon': ribbon,
-        'sample_groups': {'random': random_samples, 'worst': worst_samples},
+        'sample_groups': {'random': random_samples, 'weighted': weighted_samples},
         'cards': cards,
         'hist': agg['hist'],
         'match_len': [[b, c, round(m, 3)] for b, c, m in agg['match_len']],
@@ -298,8 +303,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <div class="legend" id="legend"></div>
 <div id="ribbon"></div>
 
-<h2>Worst-loss samples</h2>
-<div id="worst"></div>
+<h2>Loss-weighted samples <span class="dim">(drawn with probability proportional to bits &mdash; where a typical bit is lost, not the extreme tail)</span></h2>
+<div id="weighted"></div>
 
 <h2>Random samples</h2>
 <div id="random"></div>
@@ -346,7 +351,7 @@ lg += '<span style="background:#8b2fc9">8+</span>';
 document.getElementById('legend').innerHTML = lg;
 
 // ribbon
-const sampledSet = new Set([].concat(DATA.sample_groups.worst, DATA.sample_groups.random));
+const sampledSet = new Set([].concat(DATA.sample_groups.weighted, DATA.sample_groups.random));
 let rb = '';
 DATA.ribbon.forEach((r, k) => {
   const cls = sampledSet.has(k) ? 'rb sampled' : 'rb';
@@ -419,7 +424,7 @@ function renderCard(k) {
   h += '</table></div>';
   return h;
 }
-document.getElementById('worst').innerHTML = DATA.sample_groups.worst.map(renderCard).join('');
+document.getElementById('weighted').innerHTML = DATA.sample_groups.weighted.map(renderCard).join('');
 document.getElementById('random').innerHTML = DATA.sample_groups.random.map(renderCard).join('');
 document.body.addEventListener('click', e => {
   const a = e.target.closest('a[data-jump]');
@@ -475,11 +480,11 @@ def write_trace(records):
 if __name__ == '__main__':
     sp, test_tokens = get_model_and_tokens()
     records = trace_positions(sp, test_tokens)
-    random_samples, worst_samples = select_samples(records)
+    random_samples, weighted_samples = select_samples(records)
     agg = aggregate(records)
     scored_text = ''.join(test_tokens[1:]).encode('latin-1')
     gzip_bpc = len(gzip.compress(scored_text)) * 8 / len(scored_text)
-    data = build_data(records, test_tokens, random_samples, worst_samples, agg,
+    data = build_data(records, test_tokens, random_samples, weighted_samples, agg,
                       gzip_bpc, len(sp.pop_manager.pattern_collection))
     write_report(data)
     write_trace(records)
