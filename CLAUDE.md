@@ -59,7 +59,7 @@ Note that `belongs_to_category` / `members_of_category` are wired through the co
 
 Both modes flow through `_distribution_components`, and `next_word_distribution_traced` returns the final distribution plus every `(Pop, weight, votes)` component — the attribution API behind `experiments/visualize_predictions.py`, which writes a self-contained HTML report (`PatternStore/prediction_report.html`) and per-position JSONL trace.
 
-**Known scaling ceiling on byte-level data.** With `prediction_mode='strength_blend', blend_log_strength=True, uniform_prediction_ratio=0.001` (the tuned configuration) the byte-level bpc on PTB plateaus around 3.83 — adding more training data slightly *worsens* it while gzip's bpc on the same data drops. The pathology is in the algorithm structure (long-but-rare patterns accumulate and dominate the greedy longest-match parser), not in the weighting. Don't propose "more data" or "tune the ratio lower" as the fix — both have already been swept. See `memory/algorithm_scaling_ceiling.md` and the commit log around `46881c7` for the data.
+**Known scaling ceiling on byte-level data.** With `prediction_mode='strength_blend', blend_log_strength=True, uniform_prediction_ratio=0.001` (the tuned configuration) the byte-level bpc on PTB plateaus around 3.83 — adding more training data slightly *worsens* it while gzip's bpc on the same data drops. The pathology is in the algorithm structure (long-but-rare patterns accumulate and dominate the greedy longest-match parser), not in the weighting. Don't propose "more data" or "tune the ratio lower" as the fix — both have already been swept. The numbers, the sweeps and the loss breakdown are in `docs/byte-level-results.md`.
 
 ### Persistence (`streampredictor/file_manager.py`)
 
