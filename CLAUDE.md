@@ -1,7 +1,5 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Commands
 
 Install (editable, with test deps) and run the suite — all from the repo root:
@@ -73,7 +71,6 @@ Both modes flow through `_distribution_components`, and `next_word_distribution_
 
 ### Peripheral code
 
-- `experiments/` — driver scripts (`perplexity.py`, `simple_generation.py`); paths anchor to the repo via `Path(__file__).resolve().parent.parent`, and they create `PatternStore/` on demand.
 - `notebook/` — Jupyter demos; `Stream Predictor Language Demo.ipynb` is the one linked from the README.
 - `docs/main.tex` + `pop.png` — the paper source.
 - `PatternStore/` — saved TSV models (gitignored except for `first_pattern.tsv`).
